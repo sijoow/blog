@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;300;400;500;700;900&display=swap" rel="stylesheet">
+    <title>블로그</title>
+    <style>
+        /*
+        .blog_content 90% 줄면 됨
+        */
+        #blog{position:relative;display:inline-block;padding-bottom:50px;width:100%;margin-top:40px;}
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        #header_blog{max-width:800px;margin:0 auto;}
+        #data-container { max-width:800px; margin: 0 auto; margin-top:20px;}
+        .blog_content { width: 100%; margin-bottom: 20px; border: 1px solid #ddd; padding: 15px;border-radius:8px; }
+        .blog_content:hover{border:1px solid #00bdd4;}
+        .button_list { text-align: center; cursor: pointer; width: 100%; margin: 0 auto; }
+        .blogname { font-size:14px;margin-top:5px;text-decoration: underline;color:#00bdd4 ;font-weight:500;}
+        .current-page { color: #00bdd4; border:1px solid #00bdd4!important}
+
+        .button_name {margin-top: 10px;border: 1px solid #ddd;padding: 5px;font-size: 15px;font-weight: 550px;}
+        .button_name:hover{background:#00bdd4;color:#fff;cursor:pointer;}
+
+        /*게시판 디자인변경*/
+        .next button{border:none;background:none; padding:10px 8px 10px 8px;cursor:pointer;}
+        .blog_title { font-size:18px;font-weight:600; cursor: pointer; text-decoration: underline;padding-bottom:10px; }
+        .blog_subtitle { font-size:14px;font-weight:400; cursor:pointer;}
+        .button_name{}
+
+        .pagination{margin:0 auto;}
+        .pagination button{border:none;background:none;cursor:pointer;
+        padding:10px 8px 10px 8px}
+        #total-name{font-size:20px;font-weight:600;float:left;width:100%;}
+        .total_data{float:left;margin-left:10px;display:none;}
+        @media only screen and (max-width: 500px) {
+            .blog_content { width: 90%; }
+        }
+        
+    </style>
+</head>
+<body>
+<div id="blog">
+    <div id="header_blog">
+        <div class="total_name" id="total-name"></div>
+        <div class="total_data">총 게시물 수: <span id="total-count">0</span></div>
+        <button class="button_name" onclick="changeSearchQuery('요기보')">#요기보</button>
+        <button class="button_name"  onclick="changeSearchQuery('요기보 1인가구')">#요기보 1인가구</button>
+        <button class="button_name"  onclick="changeSearchQuery('요기보 빈백')">#요기보 빈백</button>
+    </div>
+    <div id="data-container"></div>
+    <div class="button_list">
+        <div class="pagination" id="pagination-container"></div>
+        <!--<div class="next" onclick="nextPage()"><button>다음 ▶</button></div>-->
+    </div>
+</div>
+
+    <script>
+        let currentPage = 1;
+        const postsPerPage = 5;
+        let totalPosts;
+        let data = [];
+        let searchQuery = '요기보 맥스'; // 초기 검색어 설정
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch(`/search/blog?query=${searchQuery}&sim&display=100`)
+                .then(response => response.json())
+                .then(result => {
+                    totalPosts = result.length;
+                    const totalCountElement = document.getElementById('total-count');
+                    totalCountElement.textContent = totalPosts;
+                    data = result;
+                    showPostsForCurrentPage();
+                    displaySearchQuery();
+                })
+                .catch(error => {
+                    console.error('데이터 가져오기 실패:', error);
+                });
+        });
+
+        function showPostsForCurrentPage() {
+            const startIndex = (currentPage - 1) * postsPerPage;
+            const endIndex = startIndex + postsPerPage;
+            const currentPosts = data.slice(startIndex, endIndex);
+            showPosts(currentPosts, document.getElementById('data-container'));
+            renderPagination();
+        }
+
+        function showPosts(posts, container) {
+            container.innerHTML = ''; // 초기화
+
+            if (posts.length === 0) {
+                const noDataMessage = document.createElement('p');
+                noDataMessage.textContent = '게시물이 없습니다.';
+                container.appendChild(noDataMessage);
+                return;
+            }
+
+            posts.forEach(item => {
+                const postContainer = document.createElement('div');
+                postContainer.classList.add('blog_content');
+                const title = document.createElement('div');
+                title.classList.add('blog_title');
+                title.innerHTML = item.title.replace(/<\/?[^>]+(>|$)/g, "");
+                postContainer.onclick = function () {
+                    window.open(item.link, '_blank');
+                };
+                const description = document.createElement('div');
+                description.classList.add('blog_subtitle');
+                const bloggername = document.createElement('div');
+                bloggername.classList.add('blogname');
+                bloggername.innerText = `블로그: ${item.bloggername}`;
+                description.innerHTML = item.description.replace(/<\/?[^>]+(>|$)/g, "");
+
+                postContainer.appendChild(title);
+                postContainer.appendChild(description);
+                postContainer.appendChild(bloggername);
+                container.appendChild(postContainer);
+            });
+        }
+
+        function nextPage() {
+            if (currentPage < Math.ceil(totalPosts / postsPerPage)) {
+                currentPage++;
+                showPostsForCurrentPage();
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                showPostsForCurrentPage();
+            }
+        }
+
+        function renderPagination() {
+            const maxPage = Math.ceil(totalPosts / postsPerPage);
+            const paginationContainer = document.getElementById('pagination-container');
+            paginationContainer.innerHTML = '';
+
+            for (let i = 1; i <= maxPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                if (i === currentPage) {
+                    pageButton.classList.add('current-page');
+                }
+                pageButton.onclick = function () {
+                    currentPage = i;
+                    showPostsForCurrentPage();
+                };
+
+                paginationContainer.appendChild(pageButton);
+            }
+        }
+
+        function displaySearchQuery() {
+            const totalNameElement = document.getElementById('total-name');
+            totalNameElement.textContent = `블로그 검색어: ${searchQuery}`;
+        }
+
+        function changeSearchQuery(newQuery) {
+            searchQuery = newQuery;
+            // 새로운 검색어로 데이터를 가져오고 화면 갱신
+            fetch(`/search/blog?query=${searchQuery}&sim&display=100`)
+                .then(response => response.json())
+                .then(result => {
+                    totalPosts = result.length;
+                    const totalCountElement = document.getElementById('total-count');
+                    totalCountElement.textContent = totalPosts;
+                    data = result;
+                    currentPage = 1; // 검색어가 변경되었으므로 현재 페이지를 1로 초기화
+                    showPostsForCurrentPage();
+                    displaySearchQuery();
+                })
+                .catch(error => {
+                    console.error('데이터 가져오기 실패:', error);
+                });
+        }
+    </script>
+</body>
+</html>
